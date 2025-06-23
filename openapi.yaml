@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: SkyManager API
-  version: "1.0.0"
+  version: 1.0.0
   description: |
     * Все даты в запросах/ответах указываются как `TIMESTAMP WITHOUT TIME ZONE`
       — т.е. **naive-UTC**.
@@ -11,20 +11,19 @@ info:
       поэтому SDK-клиент может читать тело даже при 2xx.
   contact:
     name: SkyManager dev-chat
-    url:  https://mitscreator.github.io/SkyManagerDoc
+    url: https://mitscreator.github.io/SkyManagerDoc
     email: support@skymanager.io
 servers:
   - url: https://api.skymanager.io
     description: Production
-
 tags:
   - name: Traffic
     description: Выдача и проверка задач-подписок
-
 paths:
   /sky/check:
     post:
-      tags: [Traffic]
+      tags:
+        - Traffic
       summary: Быстрая проверка возможности показа задач
       description: |
         Лёгкий call из SDK-бота **при каждом переходе** пользователя
@@ -40,9 +39,11 @@ paths:
             examples:
               ok:
                 summary: Условие для показа
-                value: { "key":"SMabc123", "user_id":6503228803 }
+                value:
+                  key: SMabc123
+                  user_id: 6503228803
       responses:
-        "200":
+        '200':
           description: Флаг «показывать / не показывать»
           content:
             application/json:
@@ -50,12 +51,15 @@ paths:
                 $ref: '#/components/schemas/CheckResponse'
               examples:
                 skip:
-                  value: { "skip": true }
+                  value:
+                    skip: true
                 show:
-                  value: { "skip": false }
+                  value:
+                    skip: false
   /sky/get_tasks:
     post:
-      tags: [Traffic]
+      tags:
+        - Traffic
       summary: Получить пакет задач-подписок
       description: |
         Возвращает до `limit` ссылок, которые пользователь
@@ -69,7 +73,7 @@ paths:
             schema:
               $ref: '#/components/schemas/GetTasksRequest'
       responses:
-        "200":
+        '200':
           description: Список задач
           content:
             application/json:
@@ -78,17 +82,18 @@ paths:
               examples:
                 example:
                   value:
-                    bundle_id: "25da691f"
+                    bundle_id: 25da691f
                     result:
-                      - signature: "0cf0…d6b3"
-                        url: "https://t.me/example_bot"
-                        rtype: "bot"
-                      - signature: "9bd2…12ef"
-                        url: "https://t.me/example_channel"
-                        rtype: "channel"
+                      - signature: 0cf0…d6b3
+                        url: https://t.me/example_bot
+                        rtype: bot
+                      - signature: 9bd2…12ef
+                        url: https://t.me/example_channel
+                        rtype: channel
   /sky/check_tasks:
     post:
-      tags: [Traffic]
+      tags:
+        - Traffic
       summary: Подтвердить выполнение пакета
       description: |
         Проверяет, все ли ссылки из пакета `bundle_id` закрыты.  
@@ -101,19 +106,19 @@ paths:
             schema:
               $ref: '#/components/schemas/CheckTasksRequest'
       responses:
-        "200":
+        '200':
           description: Итог проверки
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CheckTasksResponse'
-
 components:
   schemas:
-    ###— Запросы —#####################################################
     CheckRequest:
       type: object
-      required: [key, user_id]
+      required:
+        - key
+        - user_id
       properties:
         key:
           type: string
@@ -128,7 +133,7 @@ components:
           type: string
           minLength: 2
           maxLength: 5
-          description: >
+          description: |
             Двухбуквенный код (ru/en/…) из `TelegramUser.language_code`.
           example: ru
         is_premium:
@@ -136,7 +141,6 @@ components:
           description: Флаг Telegram Premium
           example: false
       additionalProperties: false
-
     GetTasksRequest:
       allOf:
         - $ref: '#/components/schemas/CheckRequest'
@@ -149,24 +153,27 @@ components:
               default: 5
       description: |
         Наследует поля `CheckRequest` и добавляет необязательный `limit`.
-
     CheckTasksRequest:
       type: object
-      required: [key, user_id, bundle_id]
+      required:
+        - key
+        - user_id
+        - bundle_id
       properties:
-        key:       { $ref: '#/components/schemas/CheckRequest/properties/key' }
-        user_id:   { $ref: '#/components/schemas/CheckRequest/properties/user_id' }
+        key:
+          $ref: '#/components/schemas/CheckRequest/properties/key'
+        user_id:
+          $ref: '#/components/schemas/CheckRequest/properties/user_id'
         bundle_id:
           type: string
-          pattern: '^[0-9a-f]{8}$'
+          pattern: ^[0-9a-f]{8}$
           description: Идентификатор пакета задач
           example: 25da691f
       additionalProperties: false
-
-    ###— Ответы —#####################################################
     CheckResponse:
       type: object
-      required: [skip]
+      required:
+        - skip
       properties:
         skip:
           type: boolean
@@ -177,10 +184,12 @@ components:
           type: string
           nullable: true
           description: Текст ошибки (если есть)
-
     TaskItem:
       type: object
-      required: [signature, url, rtype]
+      required:
+        - signature
+        - url
+        - rtype
       properties:
         signature:
           type: string
@@ -194,11 +203,15 @@ components:
         rtype:
           type: string
           description: Тип ресурса
-          enum: [bot, channel, external]
-
+          enum:
+            - bot
+            - channel
+            - external
     GetTasksResponse:
       type: object
-      required: [result, bundle_id]
+      required:
+        - result
+        - bundle_id
       properties:
         bundle_id:
           type: string
@@ -206,15 +219,15 @@ components:
           example: 25da691f
         result:
           type: array
-          items: { $ref: '#/components/schemas/TaskItem' }
-
+          items:
+            $ref: '#/components/schemas/TaskItem'
     CheckTasksResponse:
       type: object
-      required: [done]
+      required:
+        - done
       properties:
         done:
           type: boolean
           description: |
             **true** — все задачи из bundle закрыты,
             **false** — есть незакрытые ссылки
-  ###################################################################
