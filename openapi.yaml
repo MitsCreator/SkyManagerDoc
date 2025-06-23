@@ -1,10 +1,7 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: SkyManager API
   version: "1.0.0"
-  summary: >
-    API-бэк-энд для SDK-ботов SkyManager, помогающий продавцам-ботам
-    монетизировать переходы пользователей на покупательские ресурсы.
   description: |
     * Все даты в запросах/ответах указываются как `TIMESTAMP WITHOUT TIME ZONE`
       — т.е. **naive-UTC**.
