@@ -14,7 +14,7 @@ info:
     url:  https://t.me/skymanager_dev
     email: support@skymanager.io
 servers:
-  - url: https://api.skymanager.io
+  - url: https://mitscreator.github.io/SkyManagerDoc
     description: Production
 
 tags:
