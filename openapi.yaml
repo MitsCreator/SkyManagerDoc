@@ -1,0 +1,219 @@
+openapi: 3.0.3
+info:
+  title: SkyManager API
+  version: "1.0.0"
+  description: |
+    * Все даты в запросах/ответах указываются как `TIMESTAMP WITHOUT TIME ZONE`
+      — т.е. **naive-UTC**.
+    * Валюта цен — **RUB**.
+    * Каждый запрос содержит API-ключ продавца-бота (`key`) в теле запроса.
+    * Ошибки возвращаются в виде `{"error":"…", ...}` с HTTP 200,
+      поэтому SDK-клиент может читать тело даже при 2xx.
+  contact:
+    name: SkyManager dev-chat
+    url:  https://t.me/skymanager_dev
+    email: support@skymanager.io
+servers:
+  - url: https://api.skymanager.io
+    description: Production
+
+tags:
+  - name: Traffic
+    description: Выдача и проверка задач-подписок
+
+paths:
+  /sky/check:
+    post:
+      tags: [Traffic]
+      summary: Быстрая проверка возможности показа задач
+      description: |
+        Лёгкий call из SDK-бота **при каждом переходе** пользователя
+        в чат продавца.  
+        Сразу же создаёт Interaction и, при необходимости, асинхронно
+        формирует пакет задач.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckRequest'
+            examples:
+              ok:
+                summary: Условие для показа
+                value: { "key":"SMabc123", "user_id":6503228803 }
+      responses:
+        "200":
+          description: Флаг «показывать / не показывать»
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckResponse'
+              examples:
+                skip:
+                  value: { "skip": true }
+                show:
+                  value: { "skip": false }
+  /sky/get_tasks:
+    post:
+      tags: [Traffic]
+      summary: Получить пакет задач-подписок
+      description: |
+        Возвращает до `limit` ссылок, которые пользователь
+        должен открыть/подписаться.  
+        Если актуальный пакет уже существует — вернёт его
+        без повторного расчёта.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetTasksRequest'
+      responses:
+        "200":
+          description: Список задач
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTasksResponse'
+              examples:
+                example:
+                  value:
+                    bundle_id: "25da691f"
+                    result:
+                      - signature: "0cf0…d6b3"
+                        url: "https://t.me/example_bot"
+                        rtype: "bot"
+                      - signature: "9bd2…12ef"
+                        url: "https://t.me/example_channel"
+                        rtype: "channel"
+  /sky/check_tasks:
+    post:
+      tags: [Traffic]
+      summary: Подтвердить выполнение пакета
+      description: |
+        Проверяет, все ли ссылки из пакета `bundle_id` закрыты.  
+        В ответе `done=true`, когда ни одной ссылки со статусами
+        `pending_click | pending_bundle` не осталось.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckTasksRequest'
+      responses:
+        "200":
+          description: Итог проверки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckTasksResponse'
+
+components:
+  schemas:
+    ###— Запросы —#####################################################
+    CheckRequest:
+      type: object
+      required: [key, user_id]
+      properties:
+        key:
+          type: string
+          description: API-ключ продавца-бота (`UserResource.op_api_key`)
+          example: SMabc123
+        user_id:
+          type: integer
+          format: int64
+          description: Telegram-ID пользователя
+          example: 6503228803
+        language_code:
+          type: string
+          minLength: 2
+          maxLength: 5
+          description: >
+            Двухбуквенный код (ru/en/…) из `TelegramUser.language_code`.
+          example: ru
+        is_premium:
+          type: boolean
+          description: Флаг Telegram Premium
+          example: false
+      additionalProperties: false
+
+    GetTasksRequest:
+      allOf:
+        - $ref: '#/components/schemas/CheckRequest'
+        - type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 30
+              default: 5
+      description: |
+        Наследует поля `CheckRequest` и добавляет необязательный `limit`.
+
+    CheckTasksRequest:
+      type: object
+      required: [key, user_id, bundle_id]
+      properties:
+        key:       { $ref: '#/components/schemas/CheckRequest/properties/key' }
+        user_id:   { $ref: '#/components/schemas/CheckRequest/properties/user_id' }
+        bundle_id:
+          type: string
+          pattern: '^[0-9a-f]{8}$'
+          description: Идентификатор пакета задач
+          example: 25da691f
+      additionalProperties: false
+
+    ###— Ответы —#####################################################
+    CheckResponse:
+      type: object
+      required: [skip]
+      properties:
+        skip:
+          type: boolean
+          description: |
+            **true** — никаких задач формировать не нужно;
+            **false** — SDK-клиент ожидает сообщение-инлайн с задачами.
+        error:
+          type: string
+          nullable: true
+          description: Текст ошибки (если есть)
+
+    TaskItem:
+      type: object
+      required: [signature, url, rtype]
+      properties:
+        signature:
+          type: string
+          description: 32-символьный hex-токен подписки
+          example: 0cf0f1d3fd83d0629091ba4a7d9dd6b3
+        url:
+          type: string
+          format: uri
+          description: Ссылка на бота/канал/внешний ресурс
+          example: https://t.me/example_bot
+        rtype:
+          type: string
+          description: Тип ресурса
+          enum: [bot, channel, external]
+
+    GetTasksResponse:
+      type: object
+      required: [result, bundle_id]
+      properties:
+        bundle_id:
+          type: string
+          description: Hex-ID пакета
+          example: 25da691f
+        result:
+          type: array
+          items: { $ref: '#/components/schemas/TaskItem' }
+
+    CheckTasksResponse:
+      type: object
+      required: [done]
+      properties:
+        done:
+          type: boolean
+          description: |
+            **true** — все задачи из bundle закрыты,
+            **false** — есть незакрытые ссылки
